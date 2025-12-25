@@ -1143,6 +1143,787 @@ Use https://jwt.io to decode token and verify claims
 
 **Version History:**
 - v1.0 - Initial comprehensive documentation
+- v2.0 - Added comprehensive planning section for AI Manager features
+
+---
+
+## 19. Product Planning & Roadmap
+
+### 19.1 Product Vision
+
+**AI Manager** - An AI-first SaaS platform that enables project managers to manage multiple projects efficiently by reducing cognitive load and automating routine tasks.
+
+**Core Promise:** "Manage 5 projects like 1"
+
+**Key Principles:**
+- AI-first design: AI orchestrates and drives most interactions
+- Minimal UI: Focus on chat-first interaction
+- Integration-first: Seamlessly connects with existing tools (Azure DevOps, Jira, Slack, Git, Calendar, Meetings)
+- Manager-centric: Designed to reduce cognitive load and enable managers to handle more projects
+
+**Epic Feature (Final Stage):** Virtual meeting presence - AI-driven video/facial expressions allowing managers to "join" meetings remotely while appearing present via AI-generated video.
+
+---
+
+### 19.2 Planned API Features & Architecture
+
+#### Phase 1: Core AI Manager Features (MVP)
+
+##### 1. Meeting Integration & Action Items
+
+**APIs:**
+- `POST /api/meetings/transcript` - Upload meeting transcript (Zoom/Teams/Google Meet)
+  - Accepts: Transcript text, meeting metadata (date, participants, duration)
+  - Returns: Meeting ID, extracted action items
+  
+- `GET /api/meetings/{id}` - Get meeting details
+  - Returns: Meeting info, transcript, action items, participants
+  
+- `GET /api/meetings/{id}/action-items` - Get AI-extracted action items
+  - Returns: List of action items with assignees, deadlines, priorities
+  
+- `POST /api/meetings/{id}/action-items/sync-to-ado` - Sync action items to Azure DevOps
+  - Accepts: Mapping configuration (project, work item type)
+  - Returns: Created work items in ADO
+  
+- `GET /api/meetings` - List all meetings (with filters)
+  - Query params: projectId, dateFrom, dateTo
+  - Returns: Paginated list of meetings
+
+**Entities Needed:**
+```csharp
+public class Meeting : BaseEntity
+{
+    public string Title { get; set; }
+    public string? Description { get; set; }
+    public DateTime StartTime { get; set; }
+    public DateTime EndTime { get; set; }
+    public string? Transcript { get; set; }
+    public string Source { get; set; } // Zoom, Teams, GoogleMeet
+    public string? ExternalMeetingId { get; set; }
+    public string? RecordingUrl { get; set; }
+    public Guid? ProjectId { get; set; }
+    public virtual ICollection<MeetingParticipant> Participants { get; set; }
+    public virtual ICollection<ActionItem> ActionItems { get; set; }
+}
+
+public class MeetingParticipant : BaseEntity
+{
+    public Guid MeetingId { get; set; }
+    public string Email { get; set; }
+    public string? Name { get; set; }
+    public bool IsOrganizer { get; set; }
+    public DateTime? JoinedAt { get; set; }
+    public DateTime? LeftAt { get; set; }
+}
+
+public class ActionItem : BaseEntity
+{
+    public Guid MeetingId { get; set; }
+    public Guid? ProjectId { get; set; }
+    public Guid? AssignedToId { get; set; }
+    public string Title { get; set; }
+    public string? Description { get; set; }
+    public DateTime? DueDate { get; set; }
+    public string Priority { get; set; } // Low, Medium, High
+    public string Status { get; set; } // Open, InProgress, Completed, Cancelled
+    public string? ExternalWorkItemId { get; set; } // ADO/Jira ID
+    public string? ExternalSystem { get; set; } // AzureDevOps, Jira
+}
+```
+
+##### 2. AI Standup Generator
+
+**APIs:**
+- `POST /api/standups/generate` - Generate standup report
+  - Accepts: ProjectId (optional), dateRange, format (markdown, slack, teams)
+  - Returns: Generated standup text, metadata
+  
+- `GET /api/standups/{id}` - Get generated standup
+  - Returns: Standup content, generation metadata
+  
+- `POST /api/standups/{id}/send` - Send standup to Slack/Teams
+  - Accepts: Channel/webhook URL
+  - Returns: Send status
+  
+- `GET /api/standups` - List standup history
+  - Query params: projectId, dateFrom, dateTo
+  - Returns: Paginated list of standups
+
+**Entities Needed:**
+```csharp
+public class Standup : BaseEntity
+{
+    public Guid? ProjectId { get; set; }
+    public DateTime StandupDate { get; set; }
+    public string GeneratedContent { get; set; }
+    public string Format { get; set; } // Markdown, Slack, Teams
+    public string Status { get; set; } // Draft, Sent, Archived
+    public DateTime? SentAt { get; set; }
+    public string? SentTo { get; set; } // Channel/webhook
+}
+```
+
+##### 3. Risk Radar (AI-Powered Risk Detection)
+
+**APIs:**
+- `GET /api/risks` - Get all risks
+  - Query params: projectId, severity, status, dateFrom
+  - Returns: Paginated list of risks
+  
+- `GET /api/risks/project/{projectId}` - Get risks for a project
+  - Returns: List of risks with details
+  
+- `POST /api/risks/analyze` - Trigger AI risk analysis
+  - Accepts: ProjectId (optional, analyzes all if not provided)
+  - Returns: Analysis results, detected risks
+  
+- `PUT /api/risks/{id}` - Update risk status
+  - Accepts: Status, notes, mitigation plan
+  - Returns: Updated risk
+  
+- `GET /api/risks/{id}` - Get risk details
+  - Returns: Risk details, history, related items
+
+**Entities Needed:**
+```csharp
+public class Risk : BaseEntity
+{
+    public Guid? ProjectId { get; set; }
+    public string Title { get; set; }
+    public string? Description { get; set; }
+    public string Type { get; set; } // Delay, Silence, ScopeCreep, Dependency, Resource
+    public string Severity { get; set; } // Low, Medium, High, Critical
+    public string Status { get; set; } // Open, Mitigating, Resolved, Closed
+    public DateTime? DetectedAt { get; set; }
+    public DateTime? ResolvedAt { get; set; }
+    public string? MitigationPlan { get; set; }
+    public string? Notes { get; set; }
+    public decimal? Confidence { get; set; } // AI confidence score (0-1)
+}
+```
+
+##### 4. Manager Chat (AI Q&A System)
+
+**APIs:**
+- `POST /api/chat/query` - Ask questions about projects
+  - Accepts: Question text, context (projectId, includeHistory)
+  - Returns: AI response, sources, confidence
+  
+- `GET /api/chat/history` - Get chat history
+  - Query params: projectId, dateFrom, limit
+  - Returns: Paginated chat history
+  
+- `POST /api/chat/follow-up` - Follow-up question in context
+  - Accepts: Question, previousChatId
+  - Returns: AI response with context
+  
+- `DELETE /api/chat/history/{id}` - Delete chat entry
+  - Returns: Success status
+
+**Entities Needed:**
+```csharp
+public class ChatSession : BaseEntity
+{
+    public Guid? ProjectId { get; set; }
+    public string Question { get; set; }
+    public string? Response { get; set; }
+    public string? Sources { get; set; } // JSON array of source references
+    public decimal? Confidence { get; set; }
+    public Guid? ParentSessionId { get; set; } // For follow-up questions
+    public virtual ICollection<ChatSession> FollowUps { get; set; }
+}
+```
+
+##### 5. Auto Reports (Weekly Leadership Reports)
+
+**APIs:**
+- `POST /api/reports/weekly/generate` - Generate weekly report
+  - Accepts: Date range, projectIds (optional), format
+  - Returns: Generated report ID
+  
+- `GET /api/reports/{id}` - Get report details
+  - Returns: Report content, metadata, sections
+  
+- `POST /api/reports/{id}/send` - Send report to recipients
+  - Accepts: Recipients (emails), delivery method
+  - Returns: Send status
+  
+- `GET /api/reports` - List all reports
+  - Query params: dateFrom, dateTo, status
+  - Returns: Paginated list of reports
+  
+- `POST /api/reports/schedule` - Schedule automatic reports
+  - Accepts: Schedule config (weekly, bi-weekly, monthly)
+  - Returns: Schedule ID
+
+**Entities Needed:**
+```csharp
+public class Report : BaseEntity
+{
+    public string Type { get; set; } // Weekly, Monthly, Custom
+    public DateTime ReportDate { get; set; }
+    public DateTime DateFrom { get; set; }
+    public DateTime DateTo { get; set; }
+    public string GeneratedContent { get; set; }
+    public string Format { get; set; } // PDF, HTML, Markdown
+    public string Status { get; set; } // Draft, Generated, Sent
+    public DateTime? SentAt { get; set; }
+    public string? Recipients { get; set; } // JSON array of emails
+}
+
+public class ReportSchedule : BaseEntity
+{
+    public string Type { get; set; } // Weekly, Monthly
+    public DayOfWeek? DayOfWeek { get; set; }
+    public int? DayOfMonth { get; set; }
+    public TimeSpan Time { get; set; }
+    public string Recipients { get; set; } // JSON array
+    public bool IsActive { get; set; }
+    public DateTime? LastGeneratedAt { get; set; }
+}
+```
+
+#### Phase 2: Integration APIs
+
+##### 6. Azure DevOps Integration
+
+**APIs:**
+- `POST /api/integrations/azure-devops/connect` - Connect ADO account
+  - Accepts: Organization URL, Personal Access Token
+  - Returns: Connection status, synced projects
+  
+- `GET /api/integrations/azure-devops/status` - Get connection status
+  - Returns: Connection info, last sync time
+  
+- `POST /api/integrations/azure-devops/sync` - Sync work items
+  - Accepts: ProjectId, teamId (optional)
+  - Returns: Sync results (count of synced items)
+  
+- `GET /api/integrations/azure-devops/work-items` - Get synced work items
+  - Query params: projectId, status, assignedTo
+  - Returns: List of work items
+  
+- `POST /api/integrations/azure-devops/work-items/{id}/link` - Link ADO work item to task
+  - Accepts: TaskItemId
+  - Returns: Linked item info
+  
+- `PUT /api/integrations/azure-devops/disconnect` - Disconnect ADO
+  - Returns: Success status
+
+**Entities Needed:**
+```csharp
+public class Integration : BaseEntity
+{
+    public string Type { get; set; } // AzureDevOps, Jira, Slack, Git
+    public string Name { get; set; }
+    public bool IsActive { get; set; }
+    public string? Configuration { get; set; } // JSON config (encrypted credentials)
+    public DateTime? LastSyncedAt { get; set; }
+    public string? Status { get; set; } // Connected, Disconnected, Error
+    public string? ErrorMessage { get; set; }
+}
+
+public class ExternalWorkItem : BaseEntity
+{
+    public Guid IntegrationId { get; set; }
+    public Guid? TaskItemId { get; set; }
+    public string ExternalId { get; set; } // ADO/Jira work item ID
+    public string Title { get; set; }
+    public string? Description { get; set; }
+    public string Status { get; set; }
+    public string? AssignedTo { get; set; }
+    public DateTime? LastSyncedAt { get; set; }
+    public string? ExternalUrl { get; set; }
+}
+```
+
+##### 7. Git Integration
+
+**APIs:**
+- `POST /api/integrations/git/webhook` - Git webhook handler
+  - Accepts: Webhook payload (GitHub/GitLab/Bitbucket)
+  - Returns: Processing status
+  
+- `POST /api/integrations/git/connect` - Connect Git repository
+  - Accepts: Repository URL, access token
+  - Returns: Connection status
+  
+- `GET /api/integrations/git/commits` - Get commits for project
+  - Query params: projectId, branch, dateFrom
+  - Returns: List of commits
+  
+- `GET /api/integrations/git/pull-requests` - Get PRs for project
+  - Query params: projectId, status
+  - Returns: List of pull requests
+
+**Entities Needed:**
+```csharp
+public class GitRepository : BaseEntity
+{
+    public Guid? ProjectId { get; set; }
+    public string RepositoryUrl { get; set; }
+    public string Provider { get; set; } // GitHub, GitLab, Bitbucket
+    public string? AccessToken { get; set; } // Encrypted
+    public bool IsActive { get; set; }
+    public DateTime? LastSyncedAt { get; set; }
+}
+
+public class GitCommit : BaseEntity
+{
+    public Guid RepositoryId { get; set; }
+    public Guid? ProjectId { get; set; }
+    public string CommitHash { get; set; }
+    public string Message { get; set; }
+    public string Author { get; set; }
+    public string AuthorEmail { get; set; }
+    public DateTime CommittedAt { get; set; }
+    public string Branch { get; set; }
+}
+```
+
+##### 8. Slack/Teams Integration
+
+**APIs:**
+- `POST /api/integrations/slack/webhook` - Slack webhook handler
+  - Accepts: Slack event payload
+  - Returns: Processing status
+  
+- `POST /api/integrations/slack/connect` - Connect Slack workspace
+  - Accepts: OAuth token, workspace info
+  - Returns: Connection status
+  
+- `POST /api/integrations/slack/send` - Send message to Slack
+  - Accepts: Channel, message, format
+  - Returns: Send status
+  
+- `GET /api/integrations/slack/channels` - Get available channels
+  - Returns: List of channels
+
+**Similar APIs for Microsoft Teams**
+
+**Entities Needed:**
+```csharp
+public class SlackWorkspace : BaseEntity
+{
+    public string WorkspaceId { get; set; }
+    public string WorkspaceName { get; set; }
+    public string? AccessToken { get; set; } // Encrypted
+    public string? BotToken { get; set; } // Encrypted
+    public bool IsActive { get; set; }
+}
+```
+
+#### Phase 3: Advanced Features
+
+##### 9. Calendar & Meeting Scheduling
+
+**APIs:**
+- `GET /api/calendar/events` - Get calendar events
+  - Query params: dateFrom, dateTo
+  - Returns: List of events
+  
+- `POST /api/calendar/events` - Create calendar event
+  - Accepts: Event details
+  - Returns: Created event
+  
+- `POST /api/calendar/sync` - Sync with external calendar
+  - Accepts: Calendar provider (Google, Outlook)
+  - Returns: Sync status
+
+##### 10. Notification System
+
+**APIs:**
+- `GET /api/notifications` - Get user notifications
+  - Query params: unreadOnly, limit
+  - Returns: List of notifications
+  
+- `PUT /api/notifications/{id}/read` - Mark as read
+  - Returns: Success status
+  
+- `POST /api/notifications/preferences` - Update notification preferences
+  - Accepts: Preferences config
+  - Returns: Updated preferences
+
+**Entities Needed:**
+```csharp
+public class Notification : BaseEntity
+{
+    public Guid UserId { get; set; }
+    public string Type { get; set; } // Risk, Task, Meeting, Report
+    public string Title { get; set; }
+    public string Message { get; set; }
+    public bool IsRead { get; set; }
+    public DateTime? ReadAt { get; set; }
+    public string? ActionUrl { get; set; }
+    public Guid? RelatedEntityId { get; set; } // Project, Task, etc.
+}
+```
+
+---
+
+### 19.3 AI/LLM Orchestration Architecture
+
+#### LLM Provider Strategy
+
+**Primary:** OpenAI GPT-4 (or GPT-4 Turbo)
+**Fallback:** Azure OpenAI Service
+**Future:** Support for Anthropic Claude, local models
+
+#### AI Service Layer
+
+```csharp
+public interface ILLMService
+{
+    Task<string> GenerateResponseAsync(string prompt, LLMContext context);
+    Task<T> GenerateStructuredResponseAsync<T>(string prompt, LLMContext context);
+    Task<IEnumerable<ExtractedItem>> ExtractEntitiesAsync(string text, EntityType type);
+}
+
+public class LLMContext
+{
+    public Guid? ProjectId { get; set; }
+    public Guid? TenantId { get; set; }
+    public Dictionary<string, object> AdditionalContext { get; set; }
+    public string Model { get; set; } // gpt-4, gpt-4-turbo
+    public int? MaxTokens { get; set; }
+    public decimal? Temperature { get; set; }
+}
+```
+
+#### Prompt Engineering Strategy
+
+1. **System Prompts:** Define role and constraints
+2. **Context Injection:** Include relevant project/task data
+3. **Few-shot Examples:** Provide examples for structured outputs
+4. **Output Validation:** Validate LLM responses before saving
+
+#### AI Features Implementation
+
+**Meeting Transcript Processing:**
+- Extract action items using LLM
+- Identify assignees from transcript
+- Estimate deadlines based on context
+- Link to existing tasks/projects
+
+**Standup Generation:**
+- Aggregate recent activity (commits, PRs, task updates)
+- Generate narrative summary using LLM
+- Format for different platforms (Slack, Teams, Email)
+
+**Risk Detection:**
+- Analyze project metrics (velocity, task completion rates)
+- Detect patterns indicating delays, scope creep
+- Use LLM to contextualize and prioritize risks
+
+**Manager Chat:**
+- RAG (Retrieval Augmented Generation) approach
+- Index project data, task history, meeting notes
+- Retrieve relevant context for questions
+- Generate accurate, contextualized responses
+
+**Auto Reports:**
+- Aggregate data from multiple sources
+- Use LLM to generate narrative insights
+- Format into professional reports
+
+---
+
+### 19.4 Database Schema Additions
+
+#### New Tables Required
+
+1. **Meetings**
+   - Meeting metadata, transcript, source
+   - Foreign keys: TenantId, ProjectId
+
+2. **MeetingParticipants**
+   - Participant info per meeting
+   - Foreign keys: TenantId, MeetingId
+
+3. **ActionItems**
+   - Extracted action items from meetings
+   - Foreign keys: TenantId, MeetingId, ProjectId, AssignedToId
+
+4. **Standups**
+   - Generated standup reports
+   - Foreign keys: TenantId, ProjectId
+
+5. **Risks**
+   - Risk detection and tracking
+   - Foreign keys: TenantId, ProjectId
+
+6. **ChatSessions**
+   - Manager chat history
+   - Foreign keys: TenantId, ProjectId, ParentSessionId
+
+7. **Reports**
+   - Generated reports
+   - Foreign keys: TenantId
+
+8. **ReportSchedules**
+   - Automated report schedules
+   - Foreign keys: TenantId
+
+9. **Integrations**
+   - Integration connections
+   - Foreign keys: TenantId
+
+10. **ExternalWorkItems**
+    - Synced work items from ADO/Jira
+    - Foreign keys: TenantId, IntegrationId, TaskItemId
+
+11. **GitRepositories**
+    - Connected Git repositories
+    - Foreign keys: TenantId, ProjectId
+
+12. **GitCommits**
+    - Synced commits
+    - Foreign keys: TenantId, RepositoryId, ProjectId
+
+13. **SlackWorkspaces / TeamsWorkspaces**
+    - Connected messaging platforms
+    - Foreign keys: TenantId
+
+14. **Notifications**
+    - User notifications
+    - Foreign keys: TenantId, UserId
+
+#### Indexes Needed
+
+- `Meetings.ProjectId` + `StartTime`
+- `ActionItems.MeetingId`
+- `ActionItems.AssignedToId` + `Status`
+- `Risks.ProjectId` + `Severity` + `Status`
+- `ChatSessions.ProjectId` + `CreatedAt`
+- `GitCommits.ProjectId` + `CommittedAt`
+- `Notifications.UserId` + `IsRead` + `CreatedAt`
+
+---
+
+### 19.5 Integration Architecture
+
+#### Integration Pattern
+
+**Base Integration Service:**
+```csharp
+public interface IIntegrationService
+{
+    Task<bool> ConnectAsync(string configuration);
+    Task<bool> DisconnectAsync();
+    Task<IntegrationStatus> GetStatusAsync();
+    Task SyncAsync();
+}
+```
+
+**Specific Implementations:**
+- `AzureDevOpsIntegrationService`
+- `JiraIntegrationService`
+- `GitHubIntegrationService`
+- `SlackIntegrationService`
+- `TeamsIntegrationService`
+- `GoogleCalendarIntegrationService`
+- `OutlookCalendarIntegrationService`
+
+#### Webhook Handling
+
+- Centralized webhook controller: `/api/webhooks/{provider}`
+- Provider-specific handlers
+- Queue-based processing for async operations
+- Retry mechanism for failed webhooks
+
+#### Data Synchronization
+
+- Background jobs (Hangfire/Quartz) for periodic syncs
+- Webhook-based real-time updates
+- Conflict resolution strategy
+- Last-sync timestamp tracking
+
+---
+
+### 19.6 Implementation Roadmap
+
+#### Phase 1: Foundation (MVP) - Weeks 1-4
+
+**Week 1-2: Database & Entities**
+- Create migration for new entities
+- Implement repositories
+- Add DTOs and validators
+
+**Week 2-3: Core AI Features**
+- Meeting transcript processing
+- Action item extraction
+- Basic LLM integration (OpenAI)
+
+**Week 3-4: Risk Radar**
+- Risk detection logic
+- Risk tracking APIs
+- Basic risk analysis
+
+#### Phase 2: Integrations - Weeks 5-8
+
+**Week 5-6: Azure DevOps**
+- ADO connection & authentication
+- Work item syncing
+- Action item → ADO work item creation
+
+**Week 6-7: Git Integration**
+- Repository connection
+- Commit tracking
+- PR monitoring
+
+**Week 7-8: Slack/Teams**
+- Workspace connection
+- Message sending
+- Webhook handling
+
+#### Phase 3: Advanced Features - Weeks 9-12
+
+**Week 9-10: Standup Generator**
+- Activity aggregation
+- LLM-based generation
+- Multi-platform formatting
+
+**Week 10-11: Manager Chat**
+- RAG implementation
+- Chat history
+- Context management
+
+**Week 11-12: Auto Reports**
+- Report generation
+- Scheduling system
+- Multi-format support
+
+#### Phase 4: Polish & Optimization - Weeks 13-16
+
+- Performance optimization
+- Error handling improvements
+- UI/UX enhancements
+- Documentation
+- Testing
+
+#### Phase 5: Epic Feature (Future) - TBD
+
+- Virtual meeting presence
+- AI-driven video generation
+- Real-time facial expressions
+- Audio/text to video conversion
+
+---
+
+### 19.7 MVP Scope vs Future Features
+
+#### MVP Must-Haves (Phase 1)
+
+✅ Meeting transcript processing  
+✅ Action item extraction  
+✅ Basic risk detection  
+✅ Manager chat (Q&A)  
+✅ Azure DevOps integration (basic)  
+✅ Git integration (basic)  
+
+#### Nice-to-Haves (Phase 2-3)
+
+⭐ Standup generator  
+⭐ Auto reports  
+⭐ Slack/Teams integration  
+⭐ Calendar sync  
+⭐ Advanced risk analytics  
+⭐ Notification system  
+
+#### Future Features (Post-MVP)
+
+🔮 Virtual meeting presence  
+🔮 Advanced AI analytics  
+🔮 Custom AI model training  
+🔮 Mobile app  
+🔮 Advanced reporting & dashboards  
+🔮 Multi-language support  
+
+---
+
+### 19.8 Technical Decisions & Considerations
+
+#### LLM Provider Selection
+
+**OpenAI GPT-4:**
+- Pros: Best quality, reliable API, good documentation
+- Cons: Cost, rate limits, data privacy concerns
+- Decision: Start with OpenAI, add Azure OpenAI for enterprise customers
+
+#### Background Job Processing
+
+**Options:** Hangfire, Quartz.NET, Azure Functions
+**Decision:** Start with Hangfire (in-process), migrate to Azure Functions for scale
+
+#### Caching Strategy
+
+**Redis** for:
+- LLM responses (where appropriate)
+- Integration status
+- Frequently accessed data
+
+#### Message Queue
+
+**Azure Service Bus** or **RabbitMQ** for:
+- Webhook processing
+- Background sync jobs
+- Notification delivery
+
+#### File Storage
+
+**Azure Blob Storage** or **AWS S3** for:
+- Meeting recordings
+- Generated reports
+- Attachment storage
+
+---
+
+### 19.9 API Rate Limits & Cost Considerations
+
+#### LLM Usage Optimization
+
+- Cache common queries
+- Batch requests where possible
+- Use cheaper models for simple tasks
+- Implement request throttling per tenant
+- Monitor token usage and costs
+
+#### Integration Rate Limits
+
+- Respect API rate limits (ADO, GitHub, Slack)
+- Implement exponential backoff
+- Queue requests when limits hit
+- Track usage per integration
+
+---
+
+### 19.10 Security Considerations
+
+#### Integration Credentials
+
+- Encrypt all stored tokens/passwords
+- Use Azure Key Vault / AWS Secrets Manager
+- Rotate credentials periodically
+- Audit credential access
+
+#### LLM Data Privacy
+
+- Don't send PII to LLM without consent
+- Implement data anonymization where needed
+- Review LLM provider privacy policies
+- Consider on-premise LLM for sensitive data
+
+#### Webhook Security
+
+- Verify webhook signatures
+- Use HTTPS only
+- Implement IP whitelisting where possible
+- Rate limit webhook endpoints
+
+---
+
+**End of Planning Section**
 
 ---
 
