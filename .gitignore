@@ -27,8 +27,8 @@ bld/
 # Visual Studio cache/options directory
 .vs/
 
-# Visual Studio Code
-.vscode/
+# Visual Studio Code / Cursor (config files are allowed via exceptions below)
+# .vscode/ - removed, using specific exceptions below
 
 # Rider
 .idea/
