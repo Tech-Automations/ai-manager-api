@@ -50,6 +50,26 @@ public class ChatService : IChatService
             throw new KeyNotFoundException("User not found");
         }
 
+        // Verify project exists if provided
+        if (query.ProjectId.HasValue)
+        {
+            var project = await _projectRepository.GetByIdAsync(query.ProjectId.Value, tenantId, cancellationToken);
+            if (project == null)
+            {
+                throw new KeyNotFoundException($"Project with ID {query.ProjectId.Value} not found");
+            }
+        }
+
+        // Verify parent session exists if provided
+        if (query.ParentSessionId.HasValue)
+        {
+            var parentSession = await _chatSessionRepository.GetByIdAsync(query.ParentSessionId.Value, tenantId, cancellationToken);
+            if (parentSession == null || parentSession.UserId != userId)
+            {
+                throw new KeyNotFoundException($"Parent chat session with ID {query.ParentSessionId.Value} not found");
+            }
+        }
+
         // Get or create style profile
         var styleProfile = await GetOrCreateStyleProfileAsync(userId, tenantId, cancellationToken);
 
