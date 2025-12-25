@@ -23,6 +23,8 @@ public static class DependencyInjection
         services.AddScoped<ITaskItemService, TaskItemService>();
         services.AddScoped<IAIChatService, AIChatService>();
         services.AddScoped<IChatService, ChatService>();
+        services.AddScoped<IIntegrationService, IntegrationService>();
+        services.AddScoped<IGitIntegrationService, GitIntegrationService>();
 
         return services;
     }

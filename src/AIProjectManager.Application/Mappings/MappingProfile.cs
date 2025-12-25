@@ -2,6 +2,7 @@ using System.Text.Json;
 using AIProjectManager.Application.DTOs;
 using AIProjectManager.Application.DTOs.Auth;
 using AIProjectManager.Application.DTOs.Chat;
+using AIProjectManager.Application.DTOs.Integration;
 using AIProjectManager.Domain.Entities;
 using AutoMapper;
 
@@ -49,6 +50,19 @@ public class MappingProfile : Profile
 
         // ManagerStyleProfile mappings
         CreateMap<ManagerStyleProfile, ManagerStyleProfileDto>();
+
+        // Integration mappings
+        CreateMap<Integration, IntegrationDto>();
+
+        // ExternalWorkItem mappings
+        CreateMap<ExternalWorkItem, ExternalWorkItemDto>();
+
+        // GitRepository mappings
+        CreateMap<GitRepository, GitRepositoryDto>()
+            .ForMember(dest => dest.ProjectName, opt => opt.MapFrom(src => src.Project != null ? src.Project.Name : null));
+
+        // GitCommit mappings
+        CreateMap<GitCommit, GitCommitDto>();
     }
 }
 

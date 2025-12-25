@@ -17,6 +17,10 @@ public class ApplicationDbContext : DbContext
     public DbSet<AIInteractionLog> AIInteractionLogs { get; set; } = null!;
     public DbSet<ManagerStyleProfile> ManagerStyleProfiles { get; set; } = null!;
     public DbSet<ChatSession> ChatSessions { get; set; } = null!;
+    public DbSet<Integration> Integrations { get; set; } = null!;
+    public DbSet<ExternalWorkItem> ExternalWorkItems { get; set; } = null!;
+    public DbSet<GitRepository> GitRepositories { get; set; } = null!;
+    public DbSet<GitCommit> GitCommits { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -158,6 +162,85 @@ public class ApplicationDbContext : DbContext
             entity.HasIndex(e => e.UserId);
             entity.HasIndex(e => e.ProjectId);
             entity.HasIndex(e => new { e.UserId, e.CreatedAt });
+        });
+
+        // Integration configuration
+        modelBuilder.Entity<Integration>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Type).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Name).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.Configuration).HasMaxLength(5000);
+            entity.Property(e => e.ErrorMessage).HasMaxLength(1000);
+            
+            entity.HasIndex(e => new { e.TenantId, e.Type });
+        });
+
+        // ExternalWorkItem configuration
+        modelBuilder.Entity<ExternalWorkItem>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.ExternalId).IsRequired().HasMaxLength(200);
+            entity.Property(e => e.Title).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Description).HasMaxLength(2000);
+            entity.Property(e => e.Status).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.AssignedTo).HasMaxLength(255);
+            entity.Property(e => e.ExternalUrl).HasMaxLength(1000);
+
+            entity.HasOne(e => e.Integration)
+                .WithMany()
+                .HasForeignKey(e => e.IntegrationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.TaskItem)
+                .WithMany()
+                .HasForeignKey(e => e.TaskItemId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.IntegrationId, e.ExternalId });
+            entity.HasIndex(e => e.TaskItemId);
+        });
+
+        // GitRepository configuration
+        modelBuilder.Entity<GitRepository>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.RepositoryUrl).IsRequired().HasMaxLength(500);
+            entity.Property(e => e.Provider).IsRequired().HasMaxLength(50);
+            entity.Property(e => e.AccessToken).HasMaxLength(500); // Encrypted
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.ProjectId);
+        });
+
+        // GitCommit configuration
+        modelBuilder.Entity<GitCommit>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.CommitHash).IsRequired().HasMaxLength(100);
+            entity.Property(e => e.Message).IsRequired().HasMaxLength(1000);
+            entity.Property(e => e.Author).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.AuthorEmail).IsRequired().HasMaxLength(255);
+            entity.Property(e => e.Branch).IsRequired().HasMaxLength(200);
+
+            entity.HasOne(e => e.Repository)
+                .WithMany(r => r.Commits)
+                .HasForeignKey(e => e.RepositoryId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => new { e.RepositoryId, e.CommittedAt });
+            entity.HasIndex(e => e.ProjectId);
+            entity.HasIndex(e => e.CommitHash);
         });
     }
 }

@@ -28,6 +28,13 @@ public static class DependencyInjection
         services.AddScoped<IRepository<AIInteractionLog>, Repository<AIInteractionLog>>();
         services.AddScoped<IRepository<ChatSession>, ChatSessionRepository>();
         services.AddScoped<IRepository<ManagerStyleProfile>, ManagerStyleProfileRepository>();
+        services.AddScoped<IRepository<Integration>, Repository<Integration>>();
+        services.AddScoped<IRepository<ExternalWorkItem>, Repository<ExternalWorkItem>>();
+        services.AddScoped<IRepository<GitRepository>, Repository<GitRepository>>();
+        services.AddScoped<IRepository<GitCommit>, Repository<GitCommit>>();
+
+        // HTTP Client for integrations
+        services.AddHttpClient();
 
         // Services
         services.AddScoped<IJwtService, JwtService>();
