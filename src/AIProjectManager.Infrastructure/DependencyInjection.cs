@@ -26,9 +26,12 @@ public static class DependencyInjection
         services.AddScoped<IRepository<Project>, ProjectRepository>();
         services.AddScoped<IRepository<TaskItem>, TaskItemRepository>();
         services.AddScoped<IRepository<AIInteractionLog>, Repository<AIInteractionLog>>();
+        services.AddScoped<IRepository<ChatSession>, ChatSessionRepository>();
+        services.AddScoped<IRepository<ManagerStyleProfile>, ManagerStyleProfileRepository>();
 
         // Services
         services.AddScoped<IJwtService, JwtService>();
+        services.AddScoped<AIProjectManager.Application.Interfaces.ILLMService, OpenAIService>();
 
         return services;
     }

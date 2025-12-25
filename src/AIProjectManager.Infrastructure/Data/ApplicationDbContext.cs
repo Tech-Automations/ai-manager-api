@@ -15,6 +15,8 @@ public class ApplicationDbContext : DbContext
     public DbSet<Project> Projects { get; set; } = null!;
     public DbSet<TaskItem> Tasks { get; set; } = null!;
     public DbSet<AIInteractionLog> AIInteractionLogs { get; set; } = null!;
+    public DbSet<ManagerStyleProfile> ManagerStyleProfiles { get; set; } = null!;
+    public DbSet<ChatSession> ChatSessions { get; set; } = null!;
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -114,6 +116,48 @@ public class ApplicationDbContext : DbContext
                 .WithMany()
                 .HasForeignKey(e => e.TaskItemId)
                 .OnDelete(DeleteBehavior.SetNull);
+        });
+
+        // ManagerStyleProfile configuration
+        modelBuilder.Entity<ManagerStyleProfile>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.HasIndex(e => e.UserId).IsUnique();
+            entity.Property(e => e.Tone).IsRequired().HasMaxLength(50);
+
+            entity.HasOne(e => e.User)
+                .WithOne(u => u.StyleProfile)
+                .HasForeignKey<ManagerStyleProfile>(e => e.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ChatSession configuration
+        modelBuilder.Entity<ChatSession>(entity =>
+        {
+            entity.HasKey(e => e.Id);
+            entity.Property(e => e.Question).IsRequired().HasMaxLength(2000);
+            entity.Property(e => e.Response).HasMaxLength(10000);
+            entity.Property(e => e.Sources).HasMaxLength(2000);
+            entity.Property(e => e.Model).HasMaxLength(100);
+
+            entity.HasOne(e => e.User)
+                .WithMany(u => u.ChatSessions)
+                .HasForeignKey(e => e.UserId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasOne(e => e.Project)
+                .WithMany()
+                .HasForeignKey(e => e.ProjectId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasOne(e => e.ParentSession)
+                .WithMany(p => p.FollowUps)
+                .HasForeignKey(e => e.ParentSessionId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            entity.HasIndex(e => e.UserId);
+            entity.HasIndex(e => e.ProjectId);
+            entity.HasIndex(e => new { e.UserId, e.CreatedAt });
         });
     }
 }
